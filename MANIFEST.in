@@ -1,0 +1,11 @@
+# Include the README
+include README.md
+
+# Include the license file
+include LICENSE.txt
+
+# Include requirements file
+include requirements.txt
+
+# Include setup file
+include setup.py
