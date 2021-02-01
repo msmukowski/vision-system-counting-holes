@@ -1,7 +1,6 @@
-import argparse
 from helpers.handling import loadData
-
-
+import argparse
+import glob
 
 
 def main():
@@ -16,9 +15,12 @@ def main():
 
     # Update dictionary with image list
     for i, img in enumerate(image_list):
-        output_dict.update({img : 15})
+        output_dict.update({img : None})
 
 
+    for img in image_list:
+        image_path = glob.glob(f'{args.im}{img}.jpg')
+        print(image_path)
 
     print("BELOW")
     print(output_dict)
