@@ -1,10 +1,27 @@
 import argparse
+from helpers.handling import loadData
+
+
 
 
 def main():
     args = parse_args()
+    
+    # Method auto-imported from helpers.py to load images data
+    #image_data, image_list = loadData("C:\\projects\\vision-system-counting-holes\\data\\input.json")
+    image_data, image_list = loadData("data\\input.json")
 
-    print(args.obp)
+    # Output dictionary declaration
+    output_dict = {}
+
+    # Update dictionary with image list
+    for i, img in enumerate(image_list):
+        output_dict.update({img : 15})
+
+
+
+    print("BELOW")
+    print(output_dict)
 
 
 def parse_args():
