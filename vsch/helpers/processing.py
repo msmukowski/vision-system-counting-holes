@@ -25,12 +25,10 @@ class Picture:
 
     
     def count_objects(self):
+        # Perform thresholding and find contours
         _, th = cv.threshold(cv.cvtColor(self.image_preprocessed ,cv.COLOR_BGR2GRAY),0,255,cv.THRESH_BINARY)
         contours, _ = cv.findContours(th,cv.RETR_TREE,cv.CHAIN_APPROX_SIMPLE)
-        #x = 0
-        #y = 0
-        #z = 0
-        #u = 0
+        # Initialize all objects data list
         objects = []
         for i,cnt in enumerate(contours):
             height, width, _ = self.image_preprocessed.shape
@@ -44,60 +42,61 @@ class Picture:
             roi = roi[y:u, x:z]
 
             counted = self.get_holes(roi)
-            print(f'Quantity of counted for {self.image_path} and roi_0{i} = {counted}')
             if counted[0] != 0:
+                print(f'Quantity of counted for {self.image_path} and roi_0{i} = {counted}')
                 objects.append(counted)
         #return objects
 
     def get_holes(self, frame):
+        # Obtaining mask for specific colors of objects
         rd, frame_red = self.redMask(frame)
         bl, frame_blue = self.blueMask(frame)
         yl, frame_yellow = self.yellowMask(frame)
         gr, frame_gray = self.grayMask(frame)
         wh, frame_white = self.whiteMask(frame,frame_red,frame_blue,frame_yellow,frame_gray)
-        blocksAndCircles = []
-        blocksAndCircles.append(0)
+        # Declaration of objects data list 
+        # [holes_sum, red_obj_qty, blu_obj_qty, yel_obj_qty, gry_obj_qty, wht_obj_qty]
+        holes_n_objs = []
+        holes_n_objs.append(0)
         frames = [frame_red,frame_blue,frame_yellow,frame_gray,frame_white]
         frame = cv.resize(frame, (0, 0), fx=2, fy=2, interpolation=cv.INTER_CUBIC)
         for scene in frames:
+            # Resize frame for detection improvement
             scene = cv.resize(scene, (0, 0), fx=2, fy=2, interpolation=cv.INTER_CUBIC)
-            bgr = frame.copy()
+            # Prepare empty frame for later processing and grayscale frame
             empty = frame.copy() * 0
             gray = cv.cvtColor(cv.medianBlur(frame, 3), cv.COLOR_BGR2GRAY)
+            # Try to obtain holes position using HoughCircles method
             try:
                 circles = cv.HoughCircles(gray, cv.HOUGH_GRADIENT, 1, 20, param1=14, param2=12, minRadius=9, maxRadius=13)
-                circles = np.uint16(np.around(circles))
-                blocksAndCircles[0] = len(circles[0, :])
+                # If no circles detected continue
+                if circles is None:
+                    continue
+                else:
+                    circles = np.uint16(np.around(circles))
+                    # Count circles quantity
+                    holes_n_objs[0] = len(circles[0, :])
+                # Mark circles on empty frame for later verification whether its center is inside objects area
                 for it, i in enumerate(circles[0, :]):
-                    # draw the center of the circle
+                    # Draw the center of the circle
                     cv.circle(empty, (i[0], i[1]), 20, (255, 255, 255), -1)
                     for point in circles[0, :]:
                         width = self.line_width(i[0], i[1], point[0], point[1])
                         if width > 10 and width < 37:
                             cv.line(empty, (i[0], i[1]), (point[0], point[1]), (255, 255, 255), 20)
-            except:
-                try:
-                    circles = cv.HoughCircles(gray, cv.HOUGH_GRADIENT, 1, 20, param1=20, param2=12, minRadius=9,
-                                            maxRadius=50)
-                    circles = np.uint16(np.around(circles))
-                    numCircles = len(circles[0, :])
-                    for it, i in enumerate(circles[0, :]):
-                        # draw the center of the circle
-                        cv.circle(empty, (i[0], i[1]), 20, (255, 255, 255), -1)
-                        for point in circles[0, :]:
-                            width = self.line_width(i[0], i[1], point[0], point[1])
-                            if width > 10 and width < 32:
-                                cv.line(empty, (i[0], i[1]), (point[0], point[1]), (255, 255, 255), 20)
-                except:
-                    pass
-
+                    
+            except AssertionError as err:
+                raise Exception(err)
+            # Verify whether detected circles are allowed, reduce its quantity if not and append to list
             count = self.check_block_gray(empty,scene)
-            blocksAndCircles.append(count)
-        return blocksAndCircles
+            holes_n_objs.append(count)
+
+        return holes_n_objs
     
     def redMask(self, frame):
+        # Obtaining a red mask
         hsv = cv.cvtColor(frame,cv.COLOR_BGR2HSV)
-        hsv_blurred = hsv#cv.GaussianBlur(hsv,(3,3),7)
+        hsv_blurred = hsv #cv.GaussianBlur(hsv,(3,3),7)
         low_red = np.array([0, 35, 0])
         hig_red = np.array([12, 255, 255])
         red_msk_low = cv.inRange(hsv_blurred, low_red, hig_red)
@@ -105,34 +104,39 @@ class Picture:
         hig_red = np.array([180, 255, 255])
         red_msk_hig = cv.inRange(hsv_blurred, low_red, hig_red)
         red_msk = cv.bitwise_or(red_msk_low, red_msk_hig)
+        # Mask improvement
         red_msk = cv.morphologyEx(red_msk, cv.MORPH_DILATE, np.ones((3, 3), dtype='uint8'), iterations=2)
         red_msk = cv.morphologyEx(red_msk, cv.MORPH_CLOSE, np.ones((3, 3), dtype='uint8'), iterations=3)
         red_msk = cv.morphologyEx(red_msk, cv.MORPH_ERODE, np.ones((3, 3), dtype='uint8'), iterations=3)
         red = cv.bitwise_and(frame, frame, mask=red_msk)
+        
         return red, red_msk
 
 
     def blueMask(self, frame):
+        # Obtaining a blue mask
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         hsv_blurred = hsv  # cv.GaussianBlur(hsv,(3,3),7)
         low_blue = np.array([108, 29, 108])
         hig_blue = np.array([118, 255, 255])
         blue_msk = cv.inRange(hsv_blurred, low_blue, hig_blue)
-        # blue
+        # Mask improvement
         blue_msk = cv.morphologyEx(blue_msk, cv.MORPH_DILATE, np.ones((3, 3), dtype='uint8'), iterations=2)
         blue_msk = cv.morphologyEx(blue_msk, cv.MORPH_CLOSE, np.ones((3, 3), dtype='uint8'), iterations=2)
         blue_msk = cv.morphologyEx(blue_msk, cv.MORPH_ERODE, np.ones((3, 3), dtype='uint8'), iterations=1)
         blue = cv.bitwise_and(frame, frame, mask=blue_msk)
+        
         return blue,blue_msk
 
 
     def yellowMask(self, frame):
+        # Obtaining a yellow mask
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         hsv_blurred = hsv  # cv.GaussianBlur(hsv,(3,3),7)
         low_yellow = np.array([24, 75, 150])
         hig_yellow = np.array([27, 255, 255])
         yellow_msk = cv.inRange(hsv_blurred, low_yellow, hig_yellow)
-        # yellow
+        # Mask improvement
         yellow_msk = cv.morphologyEx(yellow_msk, cv.MORPH_DILATE, np.ones((3, 3), dtype='uint8'), iterations=3)
         yellow_msk = cv.morphologyEx(yellow_msk, cv.MORPH_CLOSE, np.ones((3, 3), dtype='uint8'), iterations=4)
         yellow_msk = cv.morphologyEx(yellow_msk, cv.MORPH_ERODE, np.ones((3, 3), dtype='uint8'), iterations=1)
@@ -141,37 +145,39 @@ class Picture:
 
 
     def grayMask(self, frame):
+        # Obtaining a gray mask
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-        hsv_blurred = hsv  # cv.GaussianBlur(hsv,(3,3),7)
         low_gray = np.array([157, 150, 90])
         hig_gray = np.array([175, 235, 255])
         gray_msk = cv.inRange(cv.cvtColor(cv.GaussianBlur(hsv, (7, 7), 5), cv.COLOR_BGR2HSV), low_gray, hig_gray)
-        # gray
+        # Mask improvement
         gray_msk = cv.morphologyEx(gray_msk, cv.MORPH_DILATE, np.ones((3, 3), dtype='uint8'), iterations=2)
         gray_msk = cv.morphologyEx(gray_msk, cv.MORPH_CLOSE, np.ones((3, 3), dtype='uint8'), iterations=2)
         gray_msk = cv.morphologyEx(gray_msk, cv.MORPH_ERODE, np.ones((3, 3), dtype='uint8'), iterations=4)
         gray = cv.bitwise_and(frame, frame, mask=gray_msk)
+        
         return gray,gray_msk
 
 
     def whiteMask(self, frame, red, blue, yellow, gray):
-        #combo mask
+        # Combination of all masks colors in order to exclude them        
         combo_mask = red + blue + yellow + gray
         combo_mask = cv.bitwise_and(frame,cv.bitwise_not(cv.cvtColor(combo_mask,cv.COLOR_GRAY2BGR)))
-        #white mask
+        # Obtaining a white mask
         hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         low_white = np.array([155, 150, 160])#([0,0,160])
         hig_white = np.array([180, 250, 255])#([255,37,255])
         white_msk = cv.inRange(cv.cvtColor(hsv, cv.COLOR_BGR2HSV), low_white, hig_white)
+        # Obtaining a composite white mask with the previous ones excluded
         complex_white_msk = white_msk+cv.cvtColor(combo_mask,cv.COLOR_BGR2GRAY)
         white = cv.bitwise_and(frame, frame, mask=(complex_white_msk))
         white = cv.bitwise_and(white,combo_mask)
+        
         return white,complex_white_msk
 
 
     def check_block_gray(self, map,mask):
         map = cv.cvtColor(map,cv.COLOR_BGR2GRAY)
-        #mask = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
         check = cv.bitwise_and(map,mask)
         _, check = cv.threshold(check, 0, 255, cv.THRESH_BINARY)
         contour, _ = cv.findContours(check, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
@@ -179,6 +185,7 @@ class Picture:
         empty = check.copy()*0
         numberOfColorBlocks = 0
         temp_list_of_box_edges = []
+
         for it, cnt in enumerate(contour):
             if cv.contourArea(contour[it]) > 250:
                 numberOfColorBlocks += 1
@@ -194,9 +201,10 @@ class Picture:
                     numberOfColorBlocks += 1
                 box = np.int0(box)
                 cv.drawContours(empty, [box], 0, (255, 255, 255), -1)
+
         return numberOfColorBlocks
 
-
+    # Returns line width based on coordinates
     def line_width(self, x1, y1, x2, y2):
         if (x1 >= x2):
             x2 = np.power(x1 - x2, 2)
@@ -206,4 +214,5 @@ class Picture:
             y2 = np.power(y1 - y2, 2)
         else:
             y2 = np.power(y2 - y1, 2)
+
         return np.sqrt(x2 + y2)
