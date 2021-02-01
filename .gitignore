@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Ignore high-weight images
+img_001.jpg
+img_002.jpg
