@@ -3,6 +3,7 @@ import numpy as np
 
 class Picture:
     def __init__(self, image_path) -> None:
+        self.image_path = image_path
         self.image = cv.imread(image_path)
         self.objects = None
         self.image_preprocessed = None
@@ -16,28 +17,34 @@ class Picture:
         erode = cv.erode(dilate, np.ones((3, 3), np.uint8), iterations=3)
         mask = cv.medianBlur(erode, 5)
         self.image_preprocessed = cv.bitwise_and(copy, copy, mask=mask)
-        # cv.imshow('masked', res)
+        #cv.imshow('masked', self.image_preprocessed)
+        #cv.waitKey(0)
+        #cv.imwrite(self.image_path[:-4]+'_processed.jpg', \
+        #        cv.resize(self.image_preprocessed, \
+        #        (0, 0), fx=0.52, fy=0.52, interpolation=cv.INTER_CUBIC))
+
     
     def count_objects(self):
         _, th = cv.threshold(cv.cvtColor(self.image_preprocessed ,cv.COLOR_BGR2GRAY),0,255,cv.THRESH_BINARY)
         contours, _ = cv.findContours(th,cv.RETR_TREE,cv.CHAIN_APPROX_SIMPLE)
-        x = 0
-        y = 0
-        z = 0
-        u = 0
+        #x = 0
+        #y = 0
+        #z = 0
+        #u = 0
         objects = []
         for i,cnt in enumerate(contours):
-            im_copy = self.image_preprocessed.copy()
-            roi = self.image_preprocessed.copy()
-            roi[:, :, :] = 0
+            height, width, _ = self.image_preprocessed.shape
+            roi = np.zeros((height,width,3), np.uint8)
             x = int(min(cnt[:, :, 0]))
             y = int(min(cnt[:, :, 1]))
             z = int(max(cnt[:, :, 0]))
             u = int(max(cnt[:, :, 1]))
             cv.drawContours(roi, contours, i, (255, 255, 255), -1)
-            roi = cv.bitwise_and(im_copy, roi)
+            roi = cv.bitwise_and(self.image_preprocessed, roi)
             roi = roi[y:u, x:z]
+
             counted = self.get_holes(roi)
+            print(f'Quantity of counted for {self.image_path} and roi_0{i} = {counted}')
             if counted[0] != 0:
                 objects.append(counted)
         #return objects
@@ -65,7 +72,7 @@ class Picture:
                     # draw the center of the circle
                     cv.circle(empty, (i[0], i[1]), 20, (255, 255, 255), -1)
                     for point in circles[0, :]:
-                        width = lineWidth(i[0], i[1], point[0], point[1])
+                        width = self.line_width(i[0], i[1], point[0], point[1])
                         if width > 10 and width < 37:
                             cv.line(empty, (i[0], i[1]), (point[0], point[1]), (255, 255, 255), 20)
             except:
@@ -78,7 +85,7 @@ class Picture:
                         # draw the center of the circle
                         cv.circle(empty, (i[0], i[1]), 20, (255, 255, 255), -1)
                         for point in circles[0, :]:
-                            width = lineWidth(i[0], i[1], point[0], point[1])
+                            width = self.line_width(i[0], i[1], point[0], point[1])
                             if width > 10 and width < 32:
                                 cv.line(empty, (i[0], i[1]), (point[0], point[1]), (255, 255, 255), 20)
                 except:

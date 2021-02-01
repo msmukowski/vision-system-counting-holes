@@ -1,4 +1,5 @@
 from helpers.handling import loadData
+from helpers.processing import Picture
 import argparse
 import glob
 
@@ -21,6 +22,9 @@ def main():
     for img in image_list:
         image_path = glob.glob(f'{args.im}{img}.jpg')
         print(image_path)
+        image = Picture(image_path[0])
+        image.preprocessing()
+        image.count_objects()
 
     print("BELOW")
     print(output_dict)

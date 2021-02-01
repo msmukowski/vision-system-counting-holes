@@ -131,7 +131,7 @@ dmypy.json
 # Ignore high-weight images
 img_001.jpg
 img_002.jpg
-
+*roi*.jpg
 # Ignore vscode files
 .vscode/
 *.code-workspace
