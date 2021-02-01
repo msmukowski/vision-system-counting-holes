@@ -28,7 +28,7 @@ setup(
     python_requires='>=3.6, <4',
     entry_points={
         'console_scripts': [
-            'run-vshc = vsch.main:main'
+            'run-vsch = vsch.main:main'
         ]
     }
 
