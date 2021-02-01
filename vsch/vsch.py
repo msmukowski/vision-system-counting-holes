@@ -25,6 +25,7 @@ def main():
         image = Picture(image_path[0])
         image.preprocessing()
         image.count_objects()
+        print(image.objects)
 
     print("BELOW")
     print(output_dict)

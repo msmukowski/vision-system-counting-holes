@@ -17,11 +17,6 @@ class Picture:
         erode = cv.erode(dilate, np.ones((3, 3), np.uint8), iterations=3)
         mask = cv.medianBlur(erode, 5)
         self.image_preprocessed = cv.bitwise_and(copy, copy, mask=mask)
-        #cv.imshow('masked', self.image_preprocessed)
-        #cv.waitKey(0)
-        #cv.imwrite(self.image_path[:-4]+'_processed.jpg', \
-        #        cv.resize(self.image_preprocessed, \
-        #        (0, 0), fx=0.52, fy=0.52, interpolation=cv.INTER_CUBIC))
 
     
     def count_objects(self):
@@ -40,12 +35,12 @@ class Picture:
             cv.drawContours(roi, contours, i, (255, 255, 255), -1)
             roi = cv.bitwise_and(self.image_preprocessed, roi)
             roi = roi[y:u, x:z]
-
+            # After obtaining region of interests (roi), the number of holes is calculated
             counted = self.get_holes(roi)
             if counted[0] != 0:
-                print(f'Quantity of counted for {self.image_path} and roi_0{i} = {counted}')
+                # print(f'Quantity of counted for {self.image_path} and roi_0{i} = {counted}')
                 objects.append(counted)
-        #return objects
+        self.objects = objects
 
     def get_holes(self, frame):
         # Obtaining mask for specific colors of objects
@@ -54,12 +49,15 @@ class Picture:
         yl, frame_yellow = self.yellowMask(frame)
         gr, frame_gray = self.grayMask(frame)
         wh, frame_white = self.whiteMask(frame,frame_red,frame_blue,frame_yellow,frame_gray)
+        
         # Declaration of objects data list 
         # [holes_sum, red_obj_qty, blu_obj_qty, yel_obj_qty, gry_obj_qty, wht_obj_qty]
         holes_n_objs = []
         holes_n_objs.append(0)
         frames = [frame_red,frame_blue,frame_yellow,frame_gray,frame_white]
         frame = cv.resize(frame, (0, 0), fx=2, fy=2, interpolation=cv.INTER_CUBIC)
+        
+        # Perform calculation for each mask (object) color
         for scene in frames:
             # Resize frame for detection improvement
             scene = cv.resize(scene, (0, 0), fx=2, fy=2, interpolation=cv.INTER_CUBIC)
@@ -87,7 +85,8 @@ class Picture:
                     
             except AssertionError as err:
                 raise Exception(err)
-            # Verify whether detected circles are allowed, reduce its quantity if not and append to list
+
+            # Check and verify color type of object and count its quantity
             count = self.check_block_gray(empty,scene)
             holes_n_objs.append(count)
 
@@ -175,7 +174,7 @@ class Picture:
         
         return white,complex_white_msk
 
-
+    # Check and verify color type of object and count its quantity
     def check_block_gray(self, map,mask):
         map = cv.cvtColor(map,cv.COLOR_BGR2GRAY)
         check = cv.bitwise_and(map,mask)
@@ -185,7 +184,8 @@ class Picture:
         empty = check.copy()*0
         numberOfColorBlocks = 0
         temp_list_of_box_edges = []
-
+        
+        # Verify every contour on image
         for it, cnt in enumerate(contour):
             if cv.contourArea(contour[it]) > 250:
                 numberOfColorBlocks += 1
@@ -197,6 +197,7 @@ class Picture:
                 temp_list_of_box_edges.append(self.line_width(box[2, 0], box[2, 1], box[3, 0], box[3, 1]))
                 temp_list_of_box_edges.append(self.line_width(box[3, 0], box[3, 1], box[0, 0], box[0, 1]))
                 edgeMin = min(temp_list_of_box_edges)
+                # Checks that the detected edge is longer than the minimum object height
                 if edgeMin > 50:
                     numberOfColorBlocks += 1
                 box = np.int0(box)
